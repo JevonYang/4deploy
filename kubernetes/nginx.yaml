@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx-gateway
+  name: nginx-gateway
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-gateway
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: nginx-volume
+          mountPath: /etc/nginx
+          # subPath: 
+        ports:
+          - containerPort: 80
+            protocol: TCP
+      volumes:
+      - name: nginx-volume
+        configMap: 
+          name: nginx-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: default
+data:
+  nginx.conf: |-
+    user  root;
+    worker_processes auto;
+    events {
+        worker_connections  1024;
+    }
+
+
+    http {
+        default_type  application/octet-stream;
+        sendfile        on;
+        keepalive_timeout  65;
+
+        server {
+            listen       80;
+            server_name  localhost;
+            location / {
+              proxy_pass http://$http_host$request_uri;
+                # root   html;
+                # index  index.html index.htm;
+            }
+
+            error_page   500 502 503 504  /50x.html;
+            location = /50x.html {
+                root   html;
+            }
+        }
+    }
